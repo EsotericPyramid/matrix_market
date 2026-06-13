@@ -285,10 +285,53 @@ pub enum GenericFieldMatrixArrayReader<R: Read> {
     // note: Pattern is not a valid field for the array format
 }
 
+impl<R: Read> Iterator for GenericFieldMatrixArrayReader<R> {
+    type Item = Result<GenericFieldMatrixArrayColumn, Error>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::Real(inner) => inner.next().map(|col| col.map(|col| GenericFieldMatrixArrayColumn::Real(col))),
+            Self::Integer(inner) => inner.next().map(|col| col.map(|col| GenericFieldMatrixArrayColumn::Integer(col))),
+            Self::Complex(inner) => inner.next().map(|col| col.map(|col| GenericFieldMatrixArrayColumn::Complex(col))),
+        }
+    }
+}
+
 pub enum MatrixArrayReader<R: Read, T: Field> {
     General(GeneralMatrixArrayReader<R, T>),
     LowerTriangleDiagonalInclusive(LowerTriIncMatrixArrayReader<R, T>),
     LowerTriangleDiagonalExclusive(LowerTriExcMatrixArrayReader<R, T>),
+}
+
+impl<R: Read, T: Field> Iterator for MatrixArrayReader<R, T> {
+    type Item = Result<MatrixArrayColumn<T>, Error>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::General(inner) => inner.next(),
+            Self::LowerTriangleDiagonalInclusive(inner) => inner.next(),
+            Self::LowerTriangleDiagonalExclusive(inner) => inner.next(),
+        }
+    }
+}
+
+pub enum GenericFieldMatrixArrayColumn {
+    Real(MatrixArrayColumn<f64>),
+    Integer(MatrixArrayColumn<i64>),
+    Complex(MatrixArrayColumn<Complex<f64>>),
+    // note: Pattern is not a valid field for the array format
+}
+
+impl Iterator for GenericFieldMatrixArrayColumn {
+    type Item = FieldVal;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::Real(inner) => inner.next().map(|v| FieldVal::Real(v)),
+            Self::Integer(inner) => inner.next().map(|v| FieldVal::Integer(v)),
+            Self::Complex(inner) => inner.next().map(|v| FieldVal::Complex(v)),
+        }
+    }
 }
 
 pub struct MatrixArrayColumn<T: Field> {
@@ -492,6 +535,19 @@ pub enum GenericFieldMatrixCoordinateReader<R: Read> {
     Integer(MatrixCoordinateReader<R, i64>),
     Complex(MatrixCoordinateReader<R, Complex<f64>>),
     Pattern(MatrixCoordinateReader<R, Pattern>),
+}
+
+impl<R: Read> Iterator for GenericFieldMatrixCoordinateReader<R> {
+    type Item = Result<(Position, FieldVal), Error>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::Real(inner) => inner.next().map(|v| v.map(|v| (v.0, FieldVal::Real(v.1)))),
+            Self::Integer(inner) => inner.next().map(|v| v.map(|v| (v.0, FieldVal::Integer(v.1)))),
+            Self::Complex(inner) => inner.next().map(|v| v.map(|v| (v.0, FieldVal::Complex(v.1)))),
+            Self::Pattern(inner) => inner.next().map(|v| v.map(|v| (v.0, FieldVal::Pattern(v.1)))),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
