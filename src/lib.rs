@@ -16,6 +16,7 @@ pub enum Error {
     MalformedHeader,
     MalformerContentHeader,
     InsufficientContent,
+    MalformedContent,
     UnsupportedHeaderOptions,
     GenericError,
     NotSquare,
@@ -147,11 +148,134 @@ pub enum Reader<R: Read> {
     // note, this is an enum to extend for an extended format
 }
 
+impl<R: Read> Reader<R> {
+    pub fn new_reader(reader: R) -> Result<Self, Error> {
+        let mut reader = BufReader::new(reader).lines().peekable();
+        // note: .mtx is an ascii format so ascii methods are being used
+        // note: .mtx is case insensitve as a whole
+        let header_line = reader.next().ok_or(Error::NoHeader)??.to_ascii_lowercase();
+        let mut header_line_iter = header_line.split_ascii_whitespace();
+        if header_line_iter.next().ok_or(Error::MalformedHeader)? != "%%matrixmarket" {return Err(Error::MalformedHeader)}
+        let object = header_line_iter.next().ok_or(Error::MalformedHeader)?;
+        let format = header_line_iter.next().ok_or(Error::MalformedHeader)?;
+        // skipping through comments
+        loop {
+            let Some(line) = reader.peek() else {return Err(Error::InsufficientContent)};
+            let Ok(line) = line else {
+                let e = reader.next().unwrap().unwrap_err();
+                return Err(Error::IoError(e));
+            };
+            if !line.starts_with('%') {
+                break;
+            } else {
+                let _ = reader.next().unwrap();
+            }
+        }
+        // processing the qualifiers and header data in the content
+        // note: this is set up like this to be potentially extended for an extended version of .mtx
+        match (object, format) {
+            ("matrix", "array") | ("matrix", "coordinate") => {
+                let field = header_line_iter.next().ok_or(Error::MalformedHeader)?;
+                let symmetry = header_line_iter.next().ok_or(Error::MalformedHeader)?;
+                // there are no other qualifiers but I see no reason to make an error of that
+                let content_header_line = reader.next().ok_or(Error::InsufficientContent)??.to_ascii_lowercase(); 
+                let mut content_header_line_iter = content_header_line.split_ascii_whitespace(); 
+                let num_rows = content_header_line_iter.next().ok_or(Error::MalformerContentHeader)?.parse::<usize>()?;
+                let num_cols = content_header_line_iter.next().ok_or(Error::MalformerContentHeader)?.parse::<usize>()?;
+                match symmetry {
+                    "general" => {},
+                    "symmetric" | "skew_symmetric" | "hermitian" => if num_cols != num_rows {return Err(Error::NotSquare)},
+                    _ => return Err(Error::UnsupportedHeaderOptions),
+                }
+                Ok(match format {
+                    "array" => {
+                        Reader::Matrix(GenericFieldMatrixReader::MatrixArray(match (field, symmetry) {
+                            ("real", "general") => {
+                                GenericFieldMatrixArrayReader::Real(MatrixArrayReader::General(GeneralMatrixArrayReader::internal_new(reader, num_rows, num_cols)))
+                            },
+                            ("integer", "general") => {
+                                GenericFieldMatrixArrayReader::Integer(MatrixArrayReader::General(GeneralMatrixArrayReader::internal_new(reader, num_rows, num_cols)))
+                            },
+                            ("complex", "general") => {
+                                GenericFieldMatrixArrayReader::Complex(MatrixArrayReader::General(GeneralMatrixArrayReader::internal_new(reader, num_rows, num_cols)))
+                            },
+                            ("real", "symmetric") => {
+                                GenericFieldMatrixArrayReader::Real(MatrixArrayReader::LowerTriangleDiagonalInclusive(LowerTriIncMatrixArrayReader::internal_new(reader, num_cols, std::clone::Clone::clone)))
+                            },
+                            ("integer", "symmetric") => {
+                                GenericFieldMatrixArrayReader::Integer(MatrixArrayReader::LowerTriangleDiagonalInclusive(LowerTriIncMatrixArrayReader::internal_new(reader, num_cols, std::clone::Clone::clone)))
+                            },
+                            ("complex", "symmetric") => {
+                                GenericFieldMatrixArrayReader::Complex(MatrixArrayReader::LowerTriangleDiagonalInclusive(LowerTriIncMatrixArrayReader::internal_new(reader, num_cols, std::clone::Clone::clone)))
+                            },
+                            ("real", "skew-symmetric") => {
+                                GenericFieldMatrixArrayReader::Real(MatrixArrayReader::LowerTriangleDiagonalExclusive(LowerTriExcMatrixArrayReader::internal_new(reader, num_cols, inverse, zero)))
+                            },
+                            ("integer", "skew-symmetric") => {
+                                GenericFieldMatrixArrayReader::Integer(MatrixArrayReader::LowerTriangleDiagonalExclusive(LowerTriExcMatrixArrayReader::internal_new(reader, num_cols, inverse, zero)))
+                            },
+                            ("complex", "skew-symmetric") => {
+                                GenericFieldMatrixArrayReader::Complex(MatrixArrayReader::LowerTriangleDiagonalExclusive(LowerTriExcMatrixArrayReader::internal_new(reader, num_cols, inverse, zero)))
+                            },
+                            ("complex", "hermitian") => {
+                                GenericFieldMatrixArrayReader::Complex(MatrixArrayReader::LowerTriangleDiagonalInclusive(LowerTriIncMatrixArrayReader::internal_new(reader, num_cols, conjugate)))
+                            },
+                            _ => return Err(Error::UnsupportedHeaderOptions),
+                        }))
+                    }
+                    "coordinate" => {
+                        let num_to_read = content_header_line_iter.next().ok_or(Error::MalformerContentHeader)?.parse::<usize>()?;
+                        Reader::Matrix(GenericFieldMatrixReader::MatrixCoordinate(match (field, symmetry) {
+                            ("real", "general") => {
+                                GenericFieldMatrixCoordinateReader::Real(MatrixCoordinateReader::internal_new(reader, num_rows, num_cols, num_to_read, None))
+                            }
+                            ("integer", "general") => {
+                                GenericFieldMatrixCoordinateReader::Integer(MatrixCoordinateReader::internal_new(reader, num_rows, num_cols, num_to_read, None))
+                            }
+                            ("complex", "general") => {
+                                GenericFieldMatrixCoordinateReader::Complex(MatrixCoordinateReader::internal_new(reader, num_rows, num_cols, num_to_read, None))
+                            }
+                            ("real", "symmetric") => {
+                                GenericFieldMatrixCoordinateReader::Real(MatrixCoordinateReader::internal_new(reader, num_rows, num_cols, num_to_read, Some(std::clone::Clone::clone)))
+                            }
+                            ("integer", "symmetric") => {
+                                GenericFieldMatrixCoordinateReader::Integer(MatrixCoordinateReader::internal_new(reader, num_rows, num_cols, num_to_read, Some(std::clone::Clone::clone)))
+                            }
+                            ("complex", "symmetric") => {
+                                GenericFieldMatrixCoordinateReader::Complex(MatrixCoordinateReader::internal_new(reader, num_rows, num_cols, num_to_read, Some(std::clone::Clone::clone)))
+                            }
+                            ("real", "skew-symmetric") => {
+                                GenericFieldMatrixCoordinateReader::Real(MatrixCoordinateReader::internal_new(reader, num_rows, num_cols, num_to_read, Some(inverse)))
+                            }
+                            ("integer", "skew-symmetric") => {
+                                GenericFieldMatrixCoordinateReader::Integer(MatrixCoordinateReader::internal_new(reader, num_rows, num_cols, num_to_read, Some(inverse)))
+                            }
+                            ("complex", "skew-symmetric") => {
+                                GenericFieldMatrixCoordinateReader::Complex(MatrixCoordinateReader::internal_new(reader, num_rows, num_cols, num_to_read, Some(inverse)))
+                            }
+                            ("complex", "hermitian") => {
+                                GenericFieldMatrixCoordinateReader::Complex(MatrixCoordinateReader::internal_new(reader, num_rows, num_cols, num_to_read, Some(conjugate)))
+                            }
+                            ("pattern", "general") => {
+                                GenericFieldMatrixCoordinateReader::Pattern(MatrixCoordinateReader::internal_new(reader, num_rows, num_cols, num_to_read, None))
+                            }
+                            ("pattern", "symmetric") => {
+                                GenericFieldMatrixCoordinateReader::Pattern(MatrixCoordinateReader::internal_new(reader, num_rows, num_cols, num_to_read, Some(std::clone::Clone::clone)))
+                            }
+                            _ => return Err(Error:: UnsupportedHeaderOptions),
+                        }))
+                    }
+                    _ => panic!("Internal Error (format not matched)")
+                })
+            }
+            _ => return Err(Error::UnsupportedHeaderOptions),
+        }
+    }
+}
+
 pub enum GenericFieldMatrixReader<R: Read> {
     MatrixArray(GenericFieldMatrixArrayReader<R>),
-    MatrixCoordinate(
-
-    ),
+    MatrixCoordinate(GenericFieldMatrixCoordinateReader<R>),
 }
 
 pub enum GenericFieldMatrixArrayReader<R: Read> {
@@ -363,88 +487,83 @@ impl<R: Read, T: Field> Iterator for LowerTriExcMatrixArrayReader<R, T> {
     }
 }
 
-impl<R: Read> Reader<R> {
-    pub fn new_reader(reader: R) -> Result<Self, Error> {
-        let mut reader = BufReader::new(reader).lines().peekable();
-        // note: .mtx is an ascii format so ascii methods are being used
-        // note: .mtx is case insensitve as a whole
-        let header_line = reader.next().ok_or(Error::NoHeader)??.to_ascii_lowercase();
-        let mut header_line_iter = header_line.split_ascii_whitespace();
-        if header_line_iter.next().ok_or(Error::MalformedHeader)? != "%%matrixmarket" {return Err(Error::MalformedHeader)}
-        let object = header_line_iter.next().ok_or(Error::MalformedHeader)?;
-        let format = header_line_iter.next().ok_or(Error::MalformedHeader)?;
-        // skipping through comments
-        loop {
-            let Some(line) = reader.peek() else {return Err(Error::InsufficientContent)};
-            let Ok(line) = line else {
-                let e = reader.next().unwrap().unwrap_err();
-                return Err(Error::IoError(e));
-            };
-            if !line.starts_with('%') {
-                break;
-            } else {
-                let _ = reader.next().unwrap();
-            }
+pub enum GenericFieldMatrixCoordinateReader<R: Read> {
+    Real(MatrixCoordinateReader<R, f64>),
+    Integer(MatrixCoordinateReader<R, i64>),
+    Complex(MatrixCoordinateReader<R, Complex<f64>>),
+    Pattern(MatrixCoordinateReader<R, Pattern>),
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct Position {
+    pub row: usize,
+    pub col: usize,
+}
+
+pub struct MatrixCoordinateReader<R: Read, T: Field> {
+    reader: iter::Peekable<io::Lines<BufReader<R>>>,
+    num_rows: usize,
+    num_cols: usize,
+    num_left: usize,
+    field: std::marker::PhantomData<T>,
+    mirror: Option<fn(&T) -> T>,
+    buffer: Option<(Position, T)>,
+}
+
+impl<R: Read, T: Field> MatrixCoordinateReader<R, T> {
+    fn internal_new(reader: iter::Peekable<io::Lines<BufReader<R>>>, num_rows: usize, num_cols: usize, num_left: usize, mirror: Option<fn(&T) -> T>) -> Self {
+        Self {
+            reader,
+            num_rows,
+            num_cols,
+            num_left,
+            field: std::marker::PhantomData,
+            mirror,
+            buffer: None,
         }
-        // processing the qualifiers and header data in the content
-        // note: this is set up like this to be potentially extended for an extended version of .mtx
-        match (object, format) {
-            ("matrix", "array") | ("matrix", "coordinate") => {
-                let field = header_line_iter.next().ok_or(Error::MalformedHeader)?;
-                let symmetry = header_line_iter.next().ok_or(Error::MalformedHeader)?;
-                // there are no other qualifiers but I see no reason to make an error of that
-                let content_header_line = reader.next().ok_or(Error::InsufficientContent)??.to_ascii_lowercase(); 
-                let mut content_header_line_iter = content_header_line.split_ascii_whitespace(); 
-                let num_rows = content_header_line_iter.next().ok_or(Error::MalformerContentHeader)?.parse::<usize>()?;
-                let num_cols = content_header_line_iter.next().ok_or(Error::MalformerContentHeader)?.parse::<usize>()?;
-                match symmetry {
-                    "general" => {},
-                    "symmetric" | "skew_symmetric" | "hermitian" => if num_cols != num_rows {return Err(Error::NotSquare)},
-                    _ => return Err(Error::UnsupportedHeaderOptions),
-                }
-                Ok(match format {
-                    "array" => {
-                        Reader::Matrix(GenericFieldMatrixReader::MatrixArray(match (field, symmetry) {
-                            ("real", "general") => {
-                                GenericFieldMatrixArrayReader::Real(MatrixArrayReader::General(GeneralMatrixArrayReader::internal_new(reader, num_rows, num_cols)))
-                            },
-                            ("integer", "general") => {
-                                GenericFieldMatrixArrayReader::Integer(MatrixArrayReader::General(GeneralMatrixArrayReader::internal_new(reader, num_rows, num_cols)))
-                            },
-                            ("complex", "general") => {
-                                GenericFieldMatrixArrayReader::Complex(MatrixArrayReader::General(GeneralMatrixArrayReader::internal_new(reader, num_rows, num_cols)))
-                            },
-                            ("real", "symmetric") => {
-                                GenericFieldMatrixArrayReader::Real(MatrixArrayReader::LowerTriangleDiagonalInclusive(LowerTriIncMatrixArrayReader::internal_new(reader, num_cols, std::clone::Clone::clone)))
-                            },
-                            ("integer", "symmetric") => {
-                                GenericFieldMatrixArrayReader::Integer(MatrixArrayReader::LowerTriangleDiagonalInclusive(LowerTriIncMatrixArrayReader::internal_new(reader, num_cols, std::clone::Clone::clone)))
-                            },
-                            ("complex", "symmetric") => {
-                                GenericFieldMatrixArrayReader::Complex(MatrixArrayReader::LowerTriangleDiagonalInclusive(LowerTriIncMatrixArrayReader::internal_new(reader, num_cols, std::clone::Clone::clone)))
-                            },
-                            ("real", "skew-symmetric") => {
-                                GenericFieldMatrixArrayReader::Real(MatrixArrayReader::LowerTriangleDiagonalExclusive(LowerTriExcMatrixArrayReader::internal_new(reader, num_cols, inverse, zero)))
-                            },
-                            ("integer", "skew-symmetric") => {
-                                GenericFieldMatrixArrayReader::Integer(MatrixArrayReader::LowerTriangleDiagonalExclusive(LowerTriExcMatrixArrayReader::internal_new(reader, num_cols, inverse, zero)))
-                            },
-                            ("complex", "skew-symmetric") => {
-                                GenericFieldMatrixArrayReader::Complex(MatrixArrayReader::LowerTriangleDiagonalExclusive(LowerTriExcMatrixArrayReader::internal_new(reader, num_cols, inverse, zero)))
-                            },
-                            ("complex", "hermitian") => {
-                                GenericFieldMatrixArrayReader::Complex(MatrixArrayReader::LowerTriangleDiagonalInclusive(LowerTriIncMatrixArrayReader::internal_new(reader, num_cols, conjugate)))
-                            },
-                            _ => return Err(Error::UnsupportedHeaderOptions),
-                        }))
-                    }
-                    "coordinate" => {
-                        todo!()
-                    }
-                    _ => panic!("Internal Error (format not matched)")
-                })
+    }
+}
+
+impl<R: Read, T: Field> Iterator for MatrixCoordinateReader<R, T> {
+    type Item = Result<(Position, T), Error>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.num_left > 0 {
+            if self.buffer.is_some() {
+                return Some(Ok(self.buffer.take().unwrap()))
             }
-            _ => return Err(Error::UnsupportedHeaderOptions),
+            self.num_left -= 1;
+            let data_line = match self.reader.next() {
+                Some(Ok(data_line)) => data_line,
+                Some(Err(e)) => return Some(Err(e.into())),
+                None => return Some(Err(Error::InsufficientContent)),
+            };
+            let mut data_line_iter = data_line.split_ascii_whitespace();
+            let row = match data_line_iter.next().map(|x| x.parse::<usize>()) {
+                Some(Ok(row)) => row -1, // 0-indexing
+                Some(Err(e)) => return Some(Err(e.into())),
+                None => return Some(Err(Error::InsufficientContent)),
+            };
+            if row > self.num_rows {return Some(Err(Error::MalformedContent))}
+            let col = match data_line_iter.next().map(|x| x.parse::<usize>()) {
+                Some(Ok(col)) => col -1, // 0-indexing
+                Some(Err(e)) => return Some(Err(e.into())),
+                None => return Some(Err(Error::InsufficientContent)),
+            };
+            if col > self.num_cols {return Some(Err(Error::MalformedContent))}
+            let field = match T::read(data_line_iter) {
+                Ok(field) => field,
+                Err(e) => return Some(Err(e))
+            };
+            if let Some(mirror) = self.mirror {
+                // note: no correction for vals on diag for skew-symmetric
+                if row != col {
+                    self.buffer = Some((Position{row: col, col: row}, mirror(&field)));
+                }
+            }
+            Some(Ok((Position{row, col}, field)))
+        } else {
+            None
         }
     }
 }
