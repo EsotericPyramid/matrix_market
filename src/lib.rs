@@ -54,10 +54,10 @@ pub enum FieldVal {
 }
 
 pub enum FieldKind {
-    Real(f64),
-    Integer(i64),
-    Complex(Complex<f64>),
-    Pattern(bool), // technically only its presence is important
+    Real,
+    Integer,
+    Complex,
+    Pattern,
 }
 
 pub trait Field: Sized + Clone {
@@ -67,6 +67,7 @@ pub trait Field: Sized + Clone {
     fn conjugate(&self) -> Self; // for hermetian / conjugate transpose
     fn zero() -> Self; // for skew-symmetric
     fn as_string() -> &'static str;
+    fn kind() -> FieldKind; 
 }
 
 impl Field for f64 {
@@ -88,6 +89,9 @@ impl Field for f64 {
     fn as_string() -> &'static str {
         "real"
     }
+    fn kind() -> FieldKind {
+        FieldKind::Real
+    }
 }
 
 impl Field for i64 {
@@ -108,6 +112,9 @@ impl Field for i64 {
     }
     fn as_string() -> &'static str {
         "integer"
+    }
+    fn kind() -> FieldKind {
+        FieldKind::Integer
     }
 }
 
@@ -132,6 +139,9 @@ impl Field for Complex<f64> {
     fn as_string() -> &'static str {
         "complex"
     }
+    fn kind() -> FieldKind {
+        FieldKind::Complex
+    }
 }
 
 impl Field for Pattern { // stand-in for Pattern
@@ -154,6 +164,9 @@ impl Field for Pattern { // stand-in for Pattern
     }
     fn as_string() -> &'static str {
         "pattern"
+    }
+    fn kind() -> FieldKind {
+        FieldKind::Pattern
     }
 }
 

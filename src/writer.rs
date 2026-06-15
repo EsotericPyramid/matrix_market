@@ -1,8 +1,7 @@
 use std::io::{BufWriter, Write};
 use super::*;
 
-
-pub struct MatrixArrayWriter<W: Write, T: Field>{
+pub struct MatrixWriter<W: Write, T: Field>{
     writer: BufWriter<W>,
     symmetry: Symmetry,
     num_rows: usize,
@@ -11,7 +10,7 @@ pub struct MatrixArrayWriter<W: Write, T: Field>{
     field: std::marker::PhantomData<T>,
 }
 
-impl<W: Write, T: Field> MatrixArrayWriter<W, T> {
+impl<W: Write, T: Field> MatrixWriter<W, T> {
     pub fn new(writer: W, num_rows: usize, num_cols: usize) -> Self {
         Self { 
             writer: BufWriter::new(writer), 
@@ -41,7 +40,7 @@ impl<W: Write, T: Field> MatrixArrayWriter<W, T> {
     }
 
     // note: the Positions is ref'd so Rust doesn't complain bout a missing lifetime in the return type
-    pub fn write<F: FnMut(&Position) -> &T>(mut self, mut matrix_index: F) -> Result<(), Error> {
+    pub fn write_array<F: FnMut(&Position) -> &T>(mut self, mut matrix_index: F) -> Result<(), Error> {
         self.writer.write_all(format!("%%MarketMatrix matrix array {} {}\n",  T::as_string(), self.symmetry.as_string()).as_bytes())?;
         for line in self.comment.lines() {
             self.writer.write_all(format!("%{}\n", line).as_bytes())?;
@@ -88,6 +87,22 @@ impl<W: Write, T: Field> MatrixArrayWriter<W, T> {
                 }
             }
         }
+        self.writer.flush()?;
+        Ok(())
+    }
+
+    pub fn write_coordinate<I: Iterator<Item = (Position, T)>>(mut self, mut coord_iter: I, num_to_read: usize) -> Result<(), Error> {
+        self.writer.write_all(format!("%%MarketMatrix matrix coordinate {} {}\n",  T::as_string(), self.symmetry.as_string()).as_bytes())?;
+        for line in self.comment.lines() {
+            self.writer.write_all(format!("%{}\n", line).as_bytes())?;
+        }
+        self.writer.write_all(format!("{} {} {}", self.num_rows, self.num_cols, num_to_read).as_bytes())?;
+        
+        for _ in 0..num_to_read {
+            let (Position {row, col}, field) = coord_iter.next().ok_or(Error::InsufficientContent)?; // mildly odd error but its fine
+            self.writer.write_all(format!("{} {} {}", row, col, field.write()).as_bytes())?;
+        }
+        
         self.writer.flush()?;
         Ok(())
     }
