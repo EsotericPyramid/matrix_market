@@ -8,8 +8,7 @@ use std::{
 use num_complex::Complex;
 
 pub mod reader;
-
-pub use reader::Reader;
+pub mod writer;
 
 pub enum Error {
     NoHeader,
@@ -20,6 +19,7 @@ pub enum Error {
     UnsupportedHeaderOptions,
     GenericError,
     NotSquare,
+    AlreadyWritten,
     FloatError(ParseFloatError),
     IntError(ParseIntError),
     IoError(io::Error),
@@ -62,14 +62,19 @@ pub enum FieldKind {
 
 pub trait Field: Sized + Clone {
     fn read<'a>(iter: impl Iterator<Item = &'a str>) -> Result<Self, Error>;
+    fn write(&self) -> String;
     fn inverse(&self) -> Self; // for skew-symmetric
     fn conjugate(&self) -> Self; // for hermetian / conjugate transpose
     fn zero() -> Self; // for skew-symmetric
+    fn as_string() -> &'static str;
 }
 
 impl Field for f64 {
     fn read<'a>(mut iter: impl Iterator<Item = &'a str>) -> Result<Self, Error> {
         Ok(iter.next().ok_or(Error::InsufficientContent)?.parse::<f64>()?)
+    }
+    fn write(&self) -> String {
+        format!("{:e}", self)
     }
     fn inverse(&self) -> Self {
         -self
@@ -80,11 +85,17 @@ impl Field for f64 {
     fn zero() -> Self {
         0.0
     }
+    fn as_string() -> &'static str {
+        "real"
+    }
 }
 
 impl Field for i64 {
     fn read<'a>(mut iter: impl Iterator<Item = &'a str>) -> Result<Self, Error> {
         Ok(iter.next().ok_or(Error::InsufficientContent)?.parse::<i64>()?)
+    }
+    fn write(&self) -> String {
+        format!("{}", self)
     }
     fn inverse(&self) -> Self {
         -self
@@ -95,6 +106,9 @@ impl Field for i64 {
     fn zero() -> Self {
         0
     }
+    fn as_string() -> &'static str {
+        "integer"
+    }
 }
 
 impl Field for Complex<f64> {
@@ -102,6 +116,9 @@ impl Field for Complex<f64> {
         let real = iter.next().ok_or(Error::InsufficientContent)?.parse::<f64>()?;
         let imaginary = iter.next().ok_or(Error::InsufficientContent)?.parse::<f64>()?;
         Ok(Complex { re: real, im: imaginary })
+    }
+    fn write(&self) -> String {
+        format!("{:e} {:e}", self.re, self.im)
     }
     fn inverse(&self) -> Self {
         -self
@@ -112,12 +129,19 @@ impl Field for Complex<f64> {
     fn zero() -> Self {
         Complex { re: 0.0, im: 0.0 }
     }
+    fn as_string() -> &'static str {
+        "complex"
+    }
 }
 
 impl Field for Pattern { // stand-in for Pattern
     fn read<'a>(_: impl Iterator<Item = &'a str>) -> Result<Self, Error> {
         // note: in the .mtx file, pattern have no representation since they are only used in coordinate where they just say that that coord is nonzero
         Ok(Pattern { is_non_zero: true })
+    }
+    fn write(&self) -> String {
+        // note: in the .mtx file, pattern have no representation since they are only used in coordinate where they just say that that coord is nonzero
+        String::new()
     }
     fn inverse(&self) -> Self {
         self.clone() // -(non-zero) != 0, -(0) == 0
@@ -128,4 +152,31 @@ impl Field for Pattern { // stand-in for Pattern
     fn zero() -> Self {
         Pattern { is_non_zero: false }
     }
+    fn as_string() -> &'static str {
+        "pattern"
+    }
+}
+
+pub enum Symmetry {
+    General,
+    Symmetric,
+    SkewSymmetric,
+    Hermitian, // aka, self-adjoint
+}
+
+impl Symmetry {
+    fn as_string(&self) -> &'static str {
+        match self {
+            Self::General => "general",
+            Self::Symmetric => "symmetric",
+            Self::SkewSymmetric => "skew-symmetric",
+            Self::Hermitian => "hermitian",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct Position {
+    pub row: usize,
+    pub col: usize,
 }

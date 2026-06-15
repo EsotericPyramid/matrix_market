@@ -418,11 +418,6 @@ impl<R: Read> Iterator for GenericFieldMatrixCoordinateReader<R> {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
-pub struct Position {
-    pub row: usize,
-    pub col: usize,
-}
 
 pub struct MatrixCoordinateReader<R: Read, T: Field> {
     reader: iter::Peekable<io::Lines<BufReader<R>>>,
