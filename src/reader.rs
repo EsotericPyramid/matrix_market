@@ -270,7 +270,6 @@ pub struct LowerTriIncMatrixArrayReader<R: Read, T: Field> {
     reader: iter::Peekable<io::Lines<BufReader<R>>>,
     size: usize, // known to be square
     current_col: usize,
-    field: std::marker::PhantomData<T>,
     mirror: fn(&T) -> T,
     columns: Vec<Vec<T>>, // note: *reversed order* so that columns can be conveniently popped off
 }
@@ -285,7 +284,6 @@ impl<R: Read, T: Field> LowerTriIncMatrixArrayReader<R, T> {
             reader,
             size,
             current_col: 0,
-            field: std::marker::PhantomData,
             mirror,
             columns: columns,
         }
@@ -341,7 +339,6 @@ pub struct LowerTriExcMatrixArrayReader<R: Read, T: Field> {
     reader: iter::Peekable<io::Lines<BufReader<R>>>,
     size: usize, // known to be square
     current_col: usize,
-    field: std::marker::PhantomData<T>,
     mirror: fn(&T) -> T,
     diag: fn() -> T,
     columns: Vec<Vec<T>>, // note: *reversed order* so that columns can be conveniently popped off
@@ -357,7 +354,6 @@ impl<R: Read, T: Field> LowerTriExcMatrixArrayReader<R, T> {
             reader,
             size,
             current_col: 0,
-            field: std::marker::PhantomData,
             mirror,
             diag,
             columns: columns,
@@ -424,7 +420,6 @@ pub struct MatrixCoordinateReader<R: Read, T: Field> {
     num_rows: usize,
     num_cols: usize,
     num_left: usize,
-    field: std::marker::PhantomData<T>,
     mirror: Option<fn(&T) -> T>,
     buffer: Option<(Position, T)>,
 }
@@ -436,7 +431,6 @@ impl<R: Read, T: Field> MatrixCoordinateReader<R, T> {
             num_rows,
             num_cols,
             num_left,
-            field: std::marker::PhantomData,
             mirror,
             buffer: None,
         }

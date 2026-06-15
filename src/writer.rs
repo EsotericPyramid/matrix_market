@@ -1,16 +1,15 @@
 use std::io::{BufWriter, Write};
 use super::*;
 
-pub struct MatrixWriter<W: Write, T: Field>{
+pub struct MatrixWriter<W: Write>{
     writer: BufWriter<W>,
     symmetry: Symmetry,
     num_rows: usize,
     num_cols: usize,
     comment: String,
-    field: std::marker::PhantomData<T>,
 }
 
-impl<W: Write, T: Field> MatrixWriter<W, T> {
+impl<W: Write> MatrixWriter<W> {
     pub fn new(writer: W, num_rows: usize, num_cols: usize) -> Self {
         Self { 
             writer: BufWriter::new(writer), 
@@ -18,7 +17,6 @@ impl<W: Write, T: Field> MatrixWriter<W, T> {
             num_rows, 
             num_cols, 
             comment: String::new(),
-            field: std::marker::PhantomData,
         }
     }
 
@@ -40,7 +38,7 @@ impl<W: Write, T: Field> MatrixWriter<W, T> {
     }
 
     // note: the Positions is ref'd so Rust doesn't complain bout a missing lifetime in the return type
-    pub fn write_array<F: FnMut(&Position) -> &T>(mut self, mut matrix_index: F) -> Result<(), Error> {
+    pub fn write_array<T: Field, F: FnMut(&Position) -> &T>(mut self, mut matrix_index: F) -> Result<(), Error> {
         if T::kind() == FieldKind::Pattern {
             return Err(Error::UnsupportedHeaderOptions);
         }
@@ -97,7 +95,7 @@ impl<W: Write, T: Field> MatrixWriter<W, T> {
         Ok(())
     }
 
-    pub fn write_coordinate<I: Iterator<Item = (Position, T)>>(mut self, mut coord_iter: I, num_to_read: usize) -> Result<(), Error> {
+    pub fn write_coordinate<T: Field, I: Iterator<Item = (Position, T)>>(mut self, mut coord_iter: I, num_to_read: usize) -> Result<(), Error> {
         if (T::kind() == FieldKind::Pattern) & (self.symmetry != Symmetry::General) & (self.symmetry != Symmetry::Symmetric) {
             return Err(Error::UnsupportedHeaderOptions);
         }
