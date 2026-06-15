@@ -53,6 +53,7 @@ pub enum FieldVal {
     Pattern(Pattern), 
 }
 
+#[derive(PartialEq, Eq)]
 pub enum FieldKind {
     Real,
     Integer,
@@ -170,6 +171,7 @@ impl Field for Pattern { // stand-in for Pattern
     }
 }
 
+#[derive(PartialEq, Eq)]
 pub enum Symmetry {
     General,
     Symmetric,

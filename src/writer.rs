@@ -41,6 +41,12 @@ impl<W: Write, T: Field> MatrixWriter<W, T> {
 
     // note: the Positions is ref'd so Rust doesn't complain bout a missing lifetime in the return type
     pub fn write_array<F: FnMut(&Position) -> &T>(mut self, mut matrix_index: F) -> Result<(), Error> {
+        if T::kind() == FieldKind::Pattern {
+            return Err(Error::UnsupportedHeaderOptions);
+        }
+        if (self.symmetry == Symmetry::Hermitian) & (T::kind() != FieldKind::Complex) {
+            return Err(Error::UnsupportedHeaderOptions);
+        }
         self.writer.write_all(format!("%%MarketMatrix matrix array {} {}\n",  T::as_string(), self.symmetry.as_string()).as_bytes())?;
         for line in self.comment.lines() {
             self.writer.write_all(format!("%{}\n", line).as_bytes())?;
@@ -92,6 +98,12 @@ impl<W: Write, T: Field> MatrixWriter<W, T> {
     }
 
     pub fn write_coordinate<I: Iterator<Item = (Position, T)>>(mut self, mut coord_iter: I, num_to_read: usize) -> Result<(), Error> {
+        if (T::kind() == FieldKind::Pattern) & (self.symmetry != Symmetry::General) & (self.symmetry != Symmetry::Symmetric) {
+            return Err(Error::UnsupportedHeaderOptions);
+        }
+        if (self.symmetry == Symmetry::Hermitian) & (T::kind() != FieldKind::Complex) {
+            return Err(Error::UnsupportedHeaderOptions);
+        }
         self.writer.write_all(format!("%%MarketMatrix matrix coordinate {} {}\n",  T::as_string(), self.symmetry.as_string()).as_bytes())?;
         for line in self.comment.lines() {
             self.writer.write_all(format!("%{}\n", line).as_bytes())?;
@@ -102,7 +114,7 @@ impl<W: Write, T: Field> MatrixWriter<W, T> {
             let (Position {row, col}, field) = coord_iter.next().ok_or(Error::InsufficientContent)?; // mildly odd error but its fine
             self.writer.write_all(format!("{} {} {}", row, col, field.write()).as_bytes())?;
         }
-        
+
         self.writer.flush()?;
         Ok(())
     }
