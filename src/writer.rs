@@ -150,9 +150,9 @@ impl<W: Write> MatrixWriter<W> {
     /// `num_to_read` is the number of coords to be written to file/read from `coord_iter`[^num_to_read].
     /// 
     /// Importantly, this writer <b>makes no attempt that the set of coords are correct/reasonable</b>.
-    /// That means that there are no checks against duplicate coords (or symmetrical coords with a symmetry)
-    /// or coords on the diagonal with [`Symmetry::SkewSymmetric`]. Additionally, not every combination of 
-    /// symmetry and field is valid, check the [specification](https://math.nist.gov/MatrixMarket/formats.html) for supported combos
+    /// That means that there are no checks against duplicate coords (or symmetrical coords with a symmetry). 
+    /// Additionally, not every combination of symmetry and field is valid, check the [specification](https://math.nist.gov/MatrixMarket/formats.html) 
+    /// for supported combos.
     /// 
     /// note: kinda iffy on the `num_to_read` input, may change in the future
     /// 
@@ -173,6 +173,8 @@ impl<W: Write> MatrixWriter<W> {
         
         for _ in 0..num_to_read {
             let (Position {row, col}, field) = coord_iter.next().ok_or(Error::InsufficientContent)?; // mildly odd error but its fine
+            if (*row >= self.num_rows) | (*col >= self.num_cols) {return Err(Error::MalformedContent)};
+            if (self.symmetry == Symmetry::SkewSymmetric) & (row == col) {return Err(Error::MalformedContent)};
             self.writer.write_all(format!("{} {} {}\n", row +1, col +1, field.write()).as_bytes())?; //make sure to 1-index these
         }
 

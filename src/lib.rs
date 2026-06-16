@@ -343,3 +343,10 @@ pub struct Position {
     pub row: usize,
     pub col: usize,
 }
+
+/// the size of a matrix
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MatrixSize {
+    pub num_rows: usize,
+    pub num_cols: usize,
+}

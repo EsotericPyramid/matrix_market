@@ -260,6 +260,14 @@ pub enum MatrixReader<R: Read> {
 }
 
 impl<R: Read> MatrixReader<R> {
+    /// returns the size of the matrix being read
+    pub fn size(&self) -> MatrixSize {
+        match self {
+            Self::MatrixArray(inner) => inner.size(),
+            Self::MatrixCoordinate(inner) => inner.size(),
+        }
+    }
+
     /// is the format of this matrix array (ie. a dense matrix)?
     /// 
     /// see [`MatrixReader::array`] to extract a reader of a matrix array
@@ -319,6 +327,17 @@ pub enum MatrixArrayReader<R: Read> {
     Complex(ParametrizedMatrixArrayReader<R, Complex<f64>>),
 }
 
+impl<R: Read> MatrixArrayReader<R> {
+    /// returns the size of the matrix being read
+    pub fn size(&self) -> MatrixSize {
+        match self {
+            Self::Real(inner) => inner.size(),
+            Self::Integer(inner) => inner.size(),
+            Self::Complex(inner) => inner.size(),
+        }
+    }
+}
+
 impl<R: Read> Iterator for MatrixArrayReader<R> {
     type Item = Result<MatrixArrayColumn, Error>;
 
@@ -351,6 +370,17 @@ pub enum ParametrizedMatrixArrayReader<R: Read, T: Field> {
     /// 
     /// used for [`Symmetry::SkewSymmetric`]
     LowerTriangleDiagonalExclusive(LowerTriExcMatrixArrayReader<R, T>),
+}
+
+impl<R: Read, T: Field> ParametrizedMatrixArrayReader<R, T> {
+    /// returns the size of the matrix being read
+    pub fn size(&self) -> MatrixSize {
+        match self {
+            Self::General(inner) => inner.size(),
+            Self::LowerTriangleDiagonalInclusive(inner) => inner.size(),
+            Self::LowerTriangleDiagonalExclusive(inner) => inner.size(),
+        }
+    }
 }
 
 impl<R: Read, T: Field> Iterator for ParametrizedMatrixArrayReader<R, T> {
@@ -416,6 +446,11 @@ pub struct GeneralMatrixArrayReader<R: Read, T: Field> {
 }
 
 impl<R: Read, T: Field> GeneralMatrixArrayReader<R, T> {
+    /// returns the size of the matrix being read
+    pub fn size(&self) -> MatrixSize {
+        MatrixSize { num_rows: self.num_rows, num_cols: self.num_cols }
+    }
+
     fn internal_new(reader: iter::Peekable<io::Lines<BufReader<R>>>, num_rows: usize, num_cols: usize) -> Self {
         Self {
             reader,
@@ -473,6 +508,11 @@ pub struct LowerTriIncMatrixArrayReader<R: Read, T: Field> {
 }
 
 impl<R: Read, T: Field> LowerTriIncMatrixArrayReader<R, T> {
+    /// returns the size of the matrix being read
+    pub fn size(&self) -> MatrixSize {
+        MatrixSize { num_rows: self.size, num_cols: self.size }
+    }
+
     fn internal_new(reader: iter::Peekable<io::Lines<BufReader<R>>>, size: usize, mirror: fn(&T) -> T) -> Self {
         let mut columns = Vec::with_capacity(size);
         for _ in 0..size {
@@ -549,6 +589,11 @@ pub struct LowerTriExcMatrixArrayReader<R: Read, T: Field> {
 }
 
 impl<R: Read, T: Field> LowerTriExcMatrixArrayReader<R, T> {
+    /// returns the size of the matrix being read
+    pub fn size(&self) -> MatrixSize {
+        MatrixSize { num_rows: self.size, num_cols: self.size }
+    }
+
     fn internal_new(reader: iter::Peekable<io::Lines<BufReader<R>>>, size: usize, mirror: fn(&T) -> T, diag: fn() -> T) -> Self {
         let mut columns = Vec::with_capacity(size);
         for _ in 0..size {
@@ -615,6 +660,18 @@ pub enum MatrixCoordinateReader<R: Read> {
     Pattern(ParametrizedMatrixCoordinateReader<R, Pattern>),
 }
 
+impl<R: Read> MatrixCoordinateReader<R> {
+    /// returns the size of the matrix being read
+    pub fn size(&self) -> MatrixSize {
+        match self {
+            Self::Real(inner) => inner.size(),
+            Self::Integer(inner) => inner.size(),
+            Self::Complex(inner) => inner.size(),
+            Self::Pattern(inner) => inner.size(),
+        }
+    }
+}
+
 impl<R: Read> Iterator for MatrixCoordinateReader<R> {
     type Item = Result<(Position, FieldVal), Error>;
 
@@ -645,6 +702,11 @@ pub struct ParametrizedMatrixCoordinateReader<R: Read, T: Field> {
 }
 
 impl<R: Read, T: Field> ParametrizedMatrixCoordinateReader<R, T> {
+    /// returns the size of the matrix being read
+    pub fn size(&self) -> MatrixSize {
+        MatrixSize { num_rows: self.num_rows, num_cols: self.num_cols }
+    }
+
     fn internal_new(reader: iter::Peekable<io::Lines<BufReader<R>>>, num_rows: usize, num_cols: usize, num_left: usize, mirror: Option<fn(&T) -> T>) -> Self {
         Self {
             reader,
