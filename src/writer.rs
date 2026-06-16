@@ -1,3 +1,8 @@
+//! a module of all the Writer structs & their methods.
+//! 
+//! It is what is says on the tin. Currently the list of writers is:
+//! 1. MatrixWriter (both Array (dense) and Coordinate (sparse) matrices)
+
 use std::io::{BufWriter, Write};
 use super::*;
 

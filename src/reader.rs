@@ -1,3 +1,7 @@
+//! a module of all the Reader structs & their methods.
+//! 
+//! It is what is says on the tin. The most important item in this is easily [`MtxReader`]
+
 use std::{
     io::{
         self, 
