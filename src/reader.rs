@@ -372,6 +372,7 @@ impl<R: Read, T: Field> Iterator for LowerTriIncMatrixArrayReader<R, T> {
                     column: vec.into_iter()
                 }))
             } else {
+                // likely because of some earlier error preventing a field from being added
                 Some(Err(Error::GenericError))
             }
         } else {
@@ -432,6 +433,7 @@ impl<R: Read, T: Field> Iterator for LowerTriExcMatrixArrayReader<R, T> {
                     column: vec.into_iter()
                 }))
             } else {
+                // likely because of some earlier error preventing a field from being added
                 Some(Err(Error::GenericError))
             }
         } else {

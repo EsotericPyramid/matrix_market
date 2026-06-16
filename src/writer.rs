@@ -45,7 +45,7 @@ impl<W: Write> MatrixWriter<W> {
         if (self.symmetry == Symmetry::Hermitian) & (T::kind() != FieldKind::Complex) {
             return Err(Error::UnsupportedHeaderOptions);
         }
-        self.writer.write_all(format!("%%MatrixMarket matrix array {} {}\n",  T::as_string(), self.symmetry.as_string()).as_bytes())?;
+        self.writer.write_all(format!("%%MatrixMarket matrix array {} {}\n",  T::kind().as_string(), self.symmetry.as_string()).as_bytes())?;
         for line in self.comment.lines() {
             self.writer.write_all(format!("%{}\n", line).as_bytes())?;
         }
@@ -93,7 +93,7 @@ impl<W: Write> MatrixWriter<W> {
         if (self.symmetry == Symmetry::Hermitian) & (T::kind() != FieldKind::Complex) {
             return Err(Error::UnsupportedHeaderOptions);
         }
-        self.writer.write_all(format!("%%MatrixMarket matrix coordinate {} {}\n",  T::as_string(), self.symmetry.as_string()).as_bytes())?;
+        self.writer.write_all(format!("%%MatrixMarket matrix coordinate {} {}\n",  T::kind().as_string(), self.symmetry.as_string()).as_bytes())?;
         for line in self.comment.lines() {
             self.writer.write_all(format!("%{}\n", line).as_bytes())?;
         }
