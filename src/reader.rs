@@ -441,10 +441,10 @@ impl<R: Read, T: Field> Iterator for MatrixCoordinateReader<R, T> {
     type Item = Result<(Position, T), Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        if self.buffer.is_some() {
+            return Some(Ok(self.buffer.take().unwrap()))
+        }
         if self.num_left > 0 {
-            if self.buffer.is_some() {
-                return Some(Ok(self.buffer.take().unwrap()))
-            }
             self.num_left -= 1;
             let data_line = match self.reader.next() {
                 Some(Ok(data_line)) => data_line,

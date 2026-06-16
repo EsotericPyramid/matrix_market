@@ -80,12 +80,13 @@ impl<W: Write> MatrixWriter<W> {
                 }
             }
         };
-        
+
         self.writer.flush()?;
         Ok(())
     }
 
-    pub fn write_coordinate<T: Field, I: Iterator<Item = (Position, T)>>(mut self, mut coord_iter: I, num_to_read: usize) -> Result<(), Error> {
+    /// note: kinda iffy on the num_to_read input, may change in the future
+    pub fn write_coordinate<'a, T: Field + 'a, I: Iterator<Item = &'a (Position, T)>>(mut self, mut coord_iter: I, num_to_read: usize) -> Result<(), Error> {
         if (T::kind() == FieldKind::Pattern) & (self.symmetry != Symmetry::General) & (self.symmetry != Symmetry::Symmetric) {
             return Err(Error::UnsupportedHeaderOptions);
         }
@@ -100,7 +101,7 @@ impl<W: Write> MatrixWriter<W> {
         
         for _ in 0..num_to_read {
             let (Position {row, col}, field) = coord_iter.next().ok_or(Error::InsufficientContent)?; // mildly odd error but its fine
-            self.writer.write_all(format!("{} {} {}", row, col, field.write()).as_bytes())?;
+            self.writer.write_all(format!("{} {} {}\n", row +1, col +1, field.write()).as_bytes())?; //make sure to 1-index these
         }
 
         self.writer.flush()?;
