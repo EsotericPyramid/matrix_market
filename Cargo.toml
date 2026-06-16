@@ -5,7 +5,7 @@ keywords = ["matrix_market", "mtx", "matrix", "parser"]
 readme = "readme.md"
 repository = "https://github.com/EsotericPyramid/matrix_market.git"
 license = "MIT"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 
 [dependencies]
