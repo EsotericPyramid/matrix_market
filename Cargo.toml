@@ -1,5 +1,9 @@
 [package]
 name = "matrix_merchant"
+description = "A simple parsing library for the matrix market (.mtx) file format"
+readme = "readme.md"
+repository = "https://github.com/EsotericPyramid/matrix_market.git"
+license = "MIT"
 version = "0.1.0"
 edition = "2024"
 
