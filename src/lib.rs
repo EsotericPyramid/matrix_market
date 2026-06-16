@@ -10,6 +10,10 @@ use num_complex::Complex;
 pub mod reader;
 pub mod writer;
 
+#[cfg(test)]
+mod tests;
+
+#[derive(Debug)]
 pub enum Error {
     NoHeader,
     MalformedHeader,
@@ -61,7 +65,7 @@ pub enum FieldKind {
     Pattern,
 }
 
-pub trait Field: Sized + Clone {
+pub trait Field: Sized + Clone + std::fmt::Debug {
     fn read<'a>(iter: impl Iterator<Item = &'a str>) -> Result<Self, Error>;
     fn write(&self) -> String;
     fn inverse(&self) -> Self; // for skew-symmetric

@@ -52,7 +52,7 @@ impl<R: Read> Reader<R> {
                 let num_cols = content_header_line_iter.next().ok_or(Error::MalformerContentHeader)?.parse::<usize>()?;
                 match symmetry {
                     "general" => {},
-                    "symmetric" | "skew_symmetric" | "hermitian" => if num_cols != num_rows {return Err(Error::NotSquare)},
+                    "symmetric" | "skew-symmetric" | "hermitian" => if num_cols != num_rows {return Err(Error::NotSquare)},
                     _ => return Err(Error::UnsupportedHeaderOptions),
                 }
                 Ok(match format {
@@ -309,7 +309,7 @@ impl<R: Read, T: Field> Iterator for LowerTriIncMatrixArrayReader<R, T> {
                 };
                 vec.push(field);
             }
-            for (field_text, other_col) in self.reader.by_ref().zip(self.columns.iter_mut().rev()) {
+            for (field_text, other_col) in self.reader.by_ref().take(self.columns.len()).zip(self.columns.iter_mut().rev()) {
                 let field_text = match field_text {
                     Ok(field_text) => field_text,
                     Err(e) => return Some(Err(e.into())),
@@ -369,7 +369,7 @@ impl<R: Read, T: Field> Iterator for LowerTriExcMatrixArrayReader<R, T> {
             self.current_col += 1;
             let mut vec = self.columns.pop().unwrap();
             vec.push((self.diag)());
-            for (field_text, other_col) in self.reader.by_ref().zip(self.columns.iter_mut().rev()) {
+            for (field_text, other_col) in self.reader.by_ref().take(self.columns.len()).zip(self.columns.iter_mut().rev()) {
                 let field_text = match field_text {
                     Ok(field_text) => field_text,
                     Err(e) => return Some(Err(e.into())),
