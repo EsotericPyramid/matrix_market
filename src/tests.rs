@@ -1,7 +1,7 @@
-use crate::reader::{GenericFieldMatrixArrayReader, GenericFieldMatrixCoordinateReader, GenericFieldMatrixReader};
+use crate::reader::{MatrixArrayReader, MatrixCoordinateReader};
 
 use super::*;
-use super::reader::Reader;
+use super::reader::MtxReader;
 use super::writer::MatrixWriter;
 
 #[test]
@@ -18,8 +18,8 @@ fn matrix_array_write_test() {
 
     println!("As file:\n{}", String::from_utf8(buf.clone()).unwrap());
 
-    let reader = Reader::new_reader(&*buf).unwrap();
-    let Reader::Matrix(GenericFieldMatrixReader::MatrixArray(GenericFieldMatrixArrayReader::Integer(matrix_array_reader)))= reader else {panic!("Incorrect kind of reader")};
+    let reader = MtxReader::new_reader(&*buf).unwrap();
+    let MatrixArrayReader::Integer(matrix_array_reader) = reader.matrix().unwrap().array().unwrap() else {panic!("Incorrect kind of reader")};
 
     let mut processed_matrix = vec![vec![0; 4]; 3];
     for (col_idx, column) in matrix_array_reader.enumerate() {
@@ -58,8 +58,8 @@ fn matrix_array_read_test() {
         vec![4, 8, 12],
     ];
 
-    let reader = Reader::new_reader(mtx_text.as_bytes()).unwrap();
-    let Reader::Matrix(GenericFieldMatrixReader::MatrixArray(GenericFieldMatrixArrayReader::Integer(matrix_array_reader)))= reader else {panic!("Incorrect kind of reader")};
+    let reader = MtxReader::new_reader(mtx_text.as_bytes()).unwrap();
+    let MatrixArrayReader::Integer(matrix_array_reader) = reader.matrix().unwrap().array().unwrap() else {panic!("Incorrect kind of reader")};
 
     let mut processed_matrix = vec![vec![0; 3]; 4];
     for (col_idx, column) in matrix_array_reader.enumerate() {
@@ -87,8 +87,8 @@ fn matrix_array_symmetric_write_test() {
 
     println!("As file:\n{}", String::from_utf8(buf.clone()).unwrap());
 
-    let reader = Reader::new_reader(&*buf).unwrap();
-    let Reader::Matrix(GenericFieldMatrixReader::MatrixArray(GenericFieldMatrixArrayReader::Integer(matrix_array_reader)))= reader else {panic!("Incorrect kind of reader")};
+    let reader = MtxReader::new_reader(&*buf).unwrap();
+    let MatrixArrayReader::Integer(matrix_array_reader) = reader.matrix().unwrap().array().unwrap() else {panic!("Incorrect kind of reader")};
 
     let mut processed_matrix = vec![vec![0; 4]; 4];
     for (col_idx, column) in matrix_array_reader.enumerate() {
@@ -125,8 +125,8 @@ fn matrix_array_symmetric_read_test() {
         vec![4, 7, 9, 0],
     ];
 
-    let reader = Reader::new_reader(mtx_text.as_bytes()).unwrap();
-    let Reader::Matrix(GenericFieldMatrixReader::MatrixArray(GenericFieldMatrixArrayReader::Integer(matrix_array_reader)))= reader else {panic!("Incorrect kind of reader")};
+    let reader = MtxReader::new_reader(mtx_text.as_bytes()).unwrap();
+    let MatrixArrayReader::Integer(matrix_array_reader) = reader.matrix().unwrap().array().unwrap() else {panic!("Incorrect kind of reader")};
 
     let mut processed_matrix = vec![vec![0; 4]; 4];
     for (col_idx, column) in matrix_array_reader.enumerate() {
@@ -154,8 +154,8 @@ fn matrix_array_skew_symmetric_write_test() {
 
     println!("As file:\n{}", String::from_utf8(buf.clone()).unwrap());
 
-    let reader = Reader::new_reader(&*buf).unwrap();
-    let Reader::Matrix(GenericFieldMatrixReader::MatrixArray(GenericFieldMatrixArrayReader::Integer(matrix_array_reader)))= reader else {panic!("Incorrect kind of reader")};
+    let reader = MtxReader::new_reader(&*buf).unwrap();
+    let MatrixArrayReader::Integer(matrix_array_reader) = reader.matrix().unwrap().array().unwrap() else {panic!("Incorrect kind of reader")};
 
     let mut processed_matrix = vec![vec![0; 4]; 4];
     for (col_idx, column) in matrix_array_reader.enumerate() {
@@ -188,8 +188,8 @@ fn matrix_array_skew_symmetric_read_test() {
         vec![3,  5,  6,  0],
     ];
 
-    let reader = Reader::new_reader(mtx_text.as_bytes()).unwrap();
-    let Reader::Matrix(GenericFieldMatrixReader::MatrixArray(GenericFieldMatrixArrayReader::Integer(matrix_array_reader)))= reader else {panic!("Incorrect kind of reader")};
+    let reader = MtxReader::new_reader(mtx_text.as_bytes()).unwrap();
+    let MatrixArrayReader::Integer(matrix_array_reader) = reader.matrix().unwrap().array().unwrap() else {panic!("Incorrect kind of reader")};
 
     let mut processed_matrix = vec![vec![0; 4]; 4];
     for (col_idx, column) in matrix_array_reader.enumerate() {
@@ -217,8 +217,8 @@ fn matrix_array_hermitian_write_test() {
 
     println!("As file:\n{}", String::from_utf8(buf.clone()).unwrap());
 
-    let reader = Reader::new_reader(&*buf).unwrap();
-    let Reader::Matrix(GenericFieldMatrixReader::MatrixArray(GenericFieldMatrixArrayReader::Complex(matrix_array_reader)))= reader else {panic!("Incorrect kind of reader")};
+    let reader = MtxReader::new_reader(&*buf).unwrap();
+    let MatrixArrayReader::Complex(matrix_array_reader) = reader.matrix().unwrap().array().unwrap() else {panic!("Incorrect kind of reader")};
 
     let mut processed_matrix = vec![vec![Complex{re: 0.0, im: 0.0}; 4]; 4];
     for (col_idx, column) in matrix_array_reader.enumerate() {
@@ -256,8 +256,8 @@ fn matrix_coord_write_test() {
 
     println!("As file:\n{}", String::from_utf8(buf.clone()).unwrap());
 
-    let reader = Reader::new_reader(&*buf).unwrap();
-    let Reader::Matrix(GenericFieldMatrixReader::MatrixCoordinate(GenericFieldMatrixCoordinateReader::Integer(coord_reader))) = reader else {panic!("Incorrect kind of reader")};
+    let reader = MtxReader::new_reader(&*buf).unwrap();
+    let MatrixCoordinateReader::Integer(coord_reader) = reader.matrix().unwrap().coordinate().unwrap() else {panic!("Incorrect kind of reader")};
 
     let mut processed_coords = coord_reader.map(|x| x.unwrap()).collect::<Vec<_>>();
     // note: as is, the order of coords isn't changed but that is potentionally subject to change sooooo...
@@ -288,8 +288,8 @@ fn matrix_coord_read_test() {
         vec![0,   0, 0,    0, 12],
     ];
 
-    let reader = Reader::new_reader(mtx_text.as_bytes()).unwrap();
-    let Reader::Matrix(GenericFieldMatrixReader::MatrixCoordinate(GenericFieldMatrixCoordinateReader::Integer(coord_reader))) = reader else {panic!("Incorrect kind of reader")};
+    let reader = MtxReader::new_reader(mtx_text.as_bytes()).unwrap();
+    let MatrixCoordinateReader::Integer(coord_reader) = reader.matrix().unwrap().coordinate().unwrap() else {panic!("Incorrect kind of reader")};
 
     let mut processed_matrix = vec![vec![0; 5]; 5];
     for (Position { row, col }, field) in coord_reader.map(|x| x.unwrap()) {
@@ -330,8 +330,8 @@ fn matrix_coord_symmetric_write_test() {
 
     println!("As file:\n{}", String::from_utf8(buf.clone()).unwrap());
 
-    let reader = Reader::new_reader(&*buf).unwrap();
-    let Reader::Matrix(GenericFieldMatrixReader::MatrixCoordinate(GenericFieldMatrixCoordinateReader::Integer(coord_reader))) = reader else {panic!("Incorrect kind of reader")};
+    let reader = MtxReader::new_reader(&*buf).unwrap();
+    let MatrixCoordinateReader::Integer(coord_reader) = reader.matrix().unwrap().coordinate().unwrap() else {panic!("Incorrect kind of reader")};
 
     let mut processed_coords = coord_reader.map(|x| x.unwrap()).collect::<Vec<_>>();
     // note: as is, the order of coords isn't changed but that is potentionally subject to change sooooo...
@@ -370,8 +370,8 @@ fn matrix_coord_skew_symmetric_write_test() {
 
     println!("As file:\n{}", String::from_utf8(buf.clone()).unwrap());
 
-    let reader = Reader::new_reader(&*buf).unwrap();
-    let Reader::Matrix(GenericFieldMatrixReader::MatrixCoordinate(GenericFieldMatrixCoordinateReader::Integer(coord_reader))) = reader else {panic!("Incorrect kind of reader")};
+    let reader = MtxReader::new_reader(&*buf).unwrap();
+    let MatrixCoordinateReader::Integer(coord_reader) = reader.matrix().unwrap().coordinate().unwrap() else {panic!("Incorrect kind of reader")};
 
     let mut processed_coords = coord_reader.map(|x| x.unwrap()).collect::<Vec<_>>();
     // note: as is, the order of coords isn't changed but that is potentionally subject to change sooooo...

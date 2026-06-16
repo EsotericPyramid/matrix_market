@@ -11,12 +11,12 @@ use num_complex::Complex;
 
 use super::*;
 
-pub enum Reader<R: Read> {
-    Matrix(GenericFieldMatrixReader<R>),
+pub enum MtxReader<R: Read> {
+    Matrix(MatrixReader<R>),
     // note, this is an enum to extend for an extended format
 }
 
-impl<R: Read> Reader<R> {
+impl<R: Read> MtxReader<R> {
     pub fn new_reader(reader: R) -> Result<Self, Error> {
         let mut reader = BufReader::new(reader).lines().peekable();
         // note: .mtx is an ascii format so ascii methods are being used
@@ -57,78 +57,78 @@ impl<R: Read> Reader<R> {
                 }
                 Ok(match format {
                     "array" => {
-                        Reader::Matrix(GenericFieldMatrixReader::MatrixArray(match (field, symmetry) {
+                        MtxReader::Matrix(MatrixReader::MatrixArray(match (field, symmetry) {
                             ("real", "general") => {
-                                GenericFieldMatrixArrayReader::Real(MatrixArrayReader::General(GeneralMatrixArrayReader::internal_new(reader, num_rows, num_cols)))
+                                MatrixArrayReader::Real(ParamatrizedMatrixArrayReader::General(GeneralMatrixArrayReader::internal_new(reader, num_rows, num_cols)))
                             },
                             ("integer", "general") => {
-                                GenericFieldMatrixArrayReader::Integer(MatrixArrayReader::General(GeneralMatrixArrayReader::internal_new(reader, num_rows, num_cols)))
+                                MatrixArrayReader::Integer(ParamatrizedMatrixArrayReader::General(GeneralMatrixArrayReader::internal_new(reader, num_rows, num_cols)))
                             },
                             ("complex", "general") => {
-                                GenericFieldMatrixArrayReader::Complex(MatrixArrayReader::General(GeneralMatrixArrayReader::internal_new(reader, num_rows, num_cols)))
+                                MatrixArrayReader::Complex(ParamatrizedMatrixArrayReader::General(GeneralMatrixArrayReader::internal_new(reader, num_rows, num_cols)))
                             },
                             ("real", "symmetric") => {
-                                GenericFieldMatrixArrayReader::Real(MatrixArrayReader::LowerTriangleDiagonalInclusive(LowerTriIncMatrixArrayReader::internal_new(reader, num_cols, std::clone::Clone::clone)))
+                                MatrixArrayReader::Real(ParamatrizedMatrixArrayReader::LowerTriangleDiagonalInclusive(LowerTriIncMatrixArrayReader::internal_new(reader, num_cols, std::clone::Clone::clone)))
                             },
                             ("integer", "symmetric") => {
-                                GenericFieldMatrixArrayReader::Integer(MatrixArrayReader::LowerTriangleDiagonalInclusive(LowerTriIncMatrixArrayReader::internal_new(reader, num_cols, std::clone::Clone::clone)))
+                                MatrixArrayReader::Integer(ParamatrizedMatrixArrayReader::LowerTriangleDiagonalInclusive(LowerTriIncMatrixArrayReader::internal_new(reader, num_cols, std::clone::Clone::clone)))
                             },
                             ("complex", "symmetric") => {
-                                GenericFieldMatrixArrayReader::Complex(MatrixArrayReader::LowerTriangleDiagonalInclusive(LowerTriIncMatrixArrayReader::internal_new(reader, num_cols, std::clone::Clone::clone)))
+                                MatrixArrayReader::Complex(ParamatrizedMatrixArrayReader::LowerTriangleDiagonalInclusive(LowerTriIncMatrixArrayReader::internal_new(reader, num_cols, std::clone::Clone::clone)))
                             },
                             ("real", "skew-symmetric") => {
-                                GenericFieldMatrixArrayReader::Real(MatrixArrayReader::LowerTriangleDiagonalExclusive(LowerTriExcMatrixArrayReader::internal_new(reader, num_cols, Field::inverse, Field::zero)))
+                                MatrixArrayReader::Real(ParamatrizedMatrixArrayReader::LowerTriangleDiagonalExclusive(LowerTriExcMatrixArrayReader::internal_new(reader, num_cols, Field::inverse, Field::zero)))
                             },
                             ("integer", "skew-symmetric") => {
-                                GenericFieldMatrixArrayReader::Integer(MatrixArrayReader::LowerTriangleDiagonalExclusive(LowerTriExcMatrixArrayReader::internal_new(reader, num_cols, Field::inverse, Field::zero)))
+                                MatrixArrayReader::Integer(ParamatrizedMatrixArrayReader::LowerTriangleDiagonalExclusive(LowerTriExcMatrixArrayReader::internal_new(reader, num_cols, Field::inverse, Field::zero)))
                             },
                             ("complex", "skew-symmetric") => {
-                                GenericFieldMatrixArrayReader::Complex(MatrixArrayReader::LowerTriangleDiagonalExclusive(LowerTriExcMatrixArrayReader::internal_new(reader, num_cols, Field::inverse, Field::zero)))
+                                MatrixArrayReader::Complex(ParamatrizedMatrixArrayReader::LowerTriangleDiagonalExclusive(LowerTriExcMatrixArrayReader::internal_new(reader, num_cols, Field::inverse, Field::zero)))
                             },
                             ("complex", "hermitian") => {
-                                GenericFieldMatrixArrayReader::Complex(MatrixArrayReader::LowerTriangleDiagonalInclusive(LowerTriIncMatrixArrayReader::internal_new(reader, num_cols, Field::conjugate)))
+                                MatrixArrayReader::Complex(ParamatrizedMatrixArrayReader::LowerTriangleDiagonalInclusive(LowerTriIncMatrixArrayReader::internal_new(reader, num_cols, Field::conjugate)))
                             },
                             _ => return Err(Error::UnsupportedHeaderOptions),
                         }))
                     }
                     "coordinate" => {
                         let num_to_read = content_header_line_iter.next().ok_or(Error::MalformerContentHeader)?.parse::<usize>()?;
-                        Reader::Matrix(GenericFieldMatrixReader::MatrixCoordinate(match (field, symmetry) {
+                        MtxReader::Matrix(MatrixReader::MatrixCoordinate(match (field, symmetry) {
                             ("real", "general") => {
-                                GenericFieldMatrixCoordinateReader::Real(MatrixCoordinateReader::internal_new(reader, num_rows, num_cols, num_to_read, None))
+                                MatrixCoordinateReader::Real(ParamatrizedMatrixCoordinateReader::internal_new(reader, num_rows, num_cols, num_to_read, None))
                             }
                             ("integer", "general") => {
-                                GenericFieldMatrixCoordinateReader::Integer(MatrixCoordinateReader::internal_new(reader, num_rows, num_cols, num_to_read, None))
+                                MatrixCoordinateReader::Integer(ParamatrizedMatrixCoordinateReader::internal_new(reader, num_rows, num_cols, num_to_read, None))
                             }
                             ("complex", "general") => {
-                                GenericFieldMatrixCoordinateReader::Complex(MatrixCoordinateReader::internal_new(reader, num_rows, num_cols, num_to_read, None))
+                                MatrixCoordinateReader::Complex(ParamatrizedMatrixCoordinateReader::internal_new(reader, num_rows, num_cols, num_to_read, None))
                             }
                             ("real", "symmetric") => {
-                                GenericFieldMatrixCoordinateReader::Real(MatrixCoordinateReader::internal_new(reader, num_rows, num_cols, num_to_read, Some(std::clone::Clone::clone)))
+                                MatrixCoordinateReader::Real(ParamatrizedMatrixCoordinateReader::internal_new(reader, num_rows, num_cols, num_to_read, Some(std::clone::Clone::clone)))
                             }
                             ("integer", "symmetric") => {
-                                GenericFieldMatrixCoordinateReader::Integer(MatrixCoordinateReader::internal_new(reader, num_rows, num_cols, num_to_read, Some(std::clone::Clone::clone)))
+                                MatrixCoordinateReader::Integer(ParamatrizedMatrixCoordinateReader::internal_new(reader, num_rows, num_cols, num_to_read, Some(std::clone::Clone::clone)))
                             }
                             ("complex", "symmetric") => {
-                                GenericFieldMatrixCoordinateReader::Complex(MatrixCoordinateReader::internal_new(reader, num_rows, num_cols, num_to_read, Some(std::clone::Clone::clone)))
+                                MatrixCoordinateReader::Complex(ParamatrizedMatrixCoordinateReader::internal_new(reader, num_rows, num_cols, num_to_read, Some(std::clone::Clone::clone)))
                             }
                             ("real", "skew-symmetric") => {
-                                GenericFieldMatrixCoordinateReader::Real(MatrixCoordinateReader::internal_new(reader, num_rows, num_cols, num_to_read, Some(Field::inverse)))
+                                MatrixCoordinateReader::Real(ParamatrizedMatrixCoordinateReader::internal_new(reader, num_rows, num_cols, num_to_read, Some(Field::inverse)))
                             }
                             ("integer", "skew-symmetric") => {
-                                GenericFieldMatrixCoordinateReader::Integer(MatrixCoordinateReader::internal_new(reader, num_rows, num_cols, num_to_read, Some(Field::inverse)))
+                                MatrixCoordinateReader::Integer(ParamatrizedMatrixCoordinateReader::internal_new(reader, num_rows, num_cols, num_to_read, Some(Field::inverse)))
                             }
                             ("complex", "skew-symmetric") => {
-                                GenericFieldMatrixCoordinateReader::Complex(MatrixCoordinateReader::internal_new(reader, num_rows, num_cols, num_to_read, Some(Field::inverse)))
+                                MatrixCoordinateReader::Complex(ParamatrizedMatrixCoordinateReader::internal_new(reader, num_rows, num_cols, num_to_read, Some(Field::inverse)))
                             }
                             ("complex", "hermitian") => {
-                                GenericFieldMatrixCoordinateReader::Complex(MatrixCoordinateReader::internal_new(reader, num_rows, num_cols, num_to_read, Some(Field::conjugate)))
+                                MatrixCoordinateReader::Complex(ParamatrizedMatrixCoordinateReader::internal_new(reader, num_rows, num_cols, num_to_read, Some(Field::conjugate)))
                             }
                             ("pattern", "general") => {
-                                GenericFieldMatrixCoordinateReader::Pattern(MatrixCoordinateReader::internal_new(reader, num_rows, num_cols, num_to_read, None))
+                                MatrixCoordinateReader::Pattern(ParamatrizedMatrixCoordinateReader::internal_new(reader, num_rows, num_cols, num_to_read, None))
                             }
                             ("pattern", "symmetric") => {
-                                GenericFieldMatrixCoordinateReader::Pattern(MatrixCoordinateReader::internal_new(reader, num_rows, num_cols, num_to_read, Some(std::clone::Clone::clone)))
+                                MatrixCoordinateReader::Pattern(ParamatrizedMatrixCoordinateReader::internal_new(reader, num_rows, num_cols, num_to_read, Some(std::clone::Clone::clone)))
                             }
                             _ => return Err(Error:: UnsupportedHeaderOptions),
                         }))
@@ -139,40 +139,86 @@ impl<R: Read> Reader<R> {
             _ => return Err(Error::UnsupportedHeaderOptions),
         }
     }
-}
 
-pub enum GenericFieldMatrixReader<R: Read> {
-    MatrixArray(GenericFieldMatrixArrayReader<R>),
-    MatrixCoordinate(GenericFieldMatrixCoordinateReader<R>),
-}
-
-pub enum GenericFieldMatrixArrayReader<R: Read> {
-    Real(MatrixArrayReader<R, f64>),
-    Integer(MatrixArrayReader<R, i64>),
-    Complex(MatrixArrayReader<R, Complex<f64>>),
-    // note: Pattern is not a valid field for the array format
-}
-
-impl<R: Read> Iterator for GenericFieldMatrixArrayReader<R> {
-    type Item = Result<GenericFieldMatrixArrayColumn, Error>;
-
-    fn next(&mut self) -> Option<Self::Item> {
+    pub fn is_matrix(&self) -> bool {
+        #[allow(unreachable_patterns)]
         match self {
-            Self::Real(inner) => inner.next().map(|col| col.map(|col| GenericFieldMatrixArrayColumn::Real(col))),
-            Self::Integer(inner) => inner.next().map(|col| col.map(|col| GenericFieldMatrixArrayColumn::Integer(col))),
-            Self::Complex(inner) => inner.next().map(|col| col.map(|col| GenericFieldMatrixArrayColumn::Complex(col))),
+            Self::Matrix(..) => true,
+            _ => false,
+        }
+    }
+
+    pub fn matrix(self) -> Option<MatrixReader<R>> {
+        #[allow(unreachable_patterns)]
+        match self {
+            Self::Matrix(inner) => Some(inner),
+            _ => None,
         }
     }
 }
 
-pub enum MatrixArrayReader<R: Read, T: Field> {
+pub enum MatrixReader<R: Read> {
+    MatrixArray(MatrixArrayReader<R>),
+    MatrixCoordinate(MatrixCoordinateReader<R>),
+}
+
+impl<R: Read> MatrixReader<R> {
+    pub fn is_array(&self) -> bool {
+        match self {
+            Self::MatrixArray(..) => true,
+            _ => false,
+        }
+    }
+    
+    pub fn is_coordinate(&self) -> bool {
+        match self {
+            Self::MatrixCoordinate(..) => true,
+            _ => false,
+        }
+    }
+    
+    pub fn array(self) -> Option<MatrixArrayReader<R>> {
+        match self {
+            Self::MatrixArray(inner) => Some(inner),
+            _ => None,
+        }
+    }
+    
+    pub fn coordinate(self) -> Option<MatrixCoordinateReader<R>> {
+        match self {
+            Self::MatrixCoordinate(inner) => Some(inner),
+            _ => None,
+        }
+    }
+}
+
+pub enum MatrixArrayReader<R: Read> {
+    Real(ParamatrizedMatrixArrayReader<R, f64>),
+    Integer(ParamatrizedMatrixArrayReader<R, i64>),
+    Complex(ParamatrizedMatrixArrayReader<R, Complex<f64>>),
+    // note: Pattern is not a valid field for the array format
+}
+
+impl<R: Read> Iterator for MatrixArrayReader<R> {
+    type Item = Result<MatrixArrayColumn, Error>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::Real(inner) => inner.next().map(|col| col.map(|col| MatrixArrayColumn::Real(col))),
+            Self::Integer(inner) => inner.next().map(|col| col.map(|col| MatrixArrayColumn::Integer(col))),
+            Self::Complex(inner) => inner.next().map(|col| col.map(|col| MatrixArrayColumn::Complex(col))),
+        }
+    }
+}
+
+pub enum ParamatrizedMatrixArrayReader<R: Read, T: Field> {
     General(GeneralMatrixArrayReader<R, T>),
     LowerTriangleDiagonalInclusive(LowerTriIncMatrixArrayReader<R, T>),
     LowerTriangleDiagonalExclusive(LowerTriExcMatrixArrayReader<R, T>),
 }
 
-impl<R: Read, T: Field> Iterator for MatrixArrayReader<R, T> {
-    type Item = Result<MatrixArrayColumn<T>, Error>;
+impl<R: Read, T: Field> Iterator for ParamatrizedMatrixArrayReader<R, T> {
+    type Item = Result<ParamatrizedMatrixArrayColumn<T>, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self {
@@ -183,14 +229,14 @@ impl<R: Read, T: Field> Iterator for MatrixArrayReader<R, T> {
     }
 }
 
-pub enum GenericFieldMatrixArrayColumn {
-    Real(MatrixArrayColumn<f64>),
-    Integer(MatrixArrayColumn<i64>),
-    Complex(MatrixArrayColumn<Complex<f64>>),
+pub enum MatrixArrayColumn {
+    Real(ParamatrizedMatrixArrayColumn<f64>),
+    Integer(ParamatrizedMatrixArrayColumn<i64>),
+    Complex(ParamatrizedMatrixArrayColumn<Complex<f64>>),
     // note: Pattern is not a valid field for the array format
 }
 
-impl Iterator for GenericFieldMatrixArrayColumn {
+impl Iterator for MatrixArrayColumn {
     type Item = FieldVal;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -202,11 +248,11 @@ impl Iterator for GenericFieldMatrixArrayColumn {
     }
 }
 
-pub struct MatrixArrayColumn<T: Field> {
+pub struct ParamatrizedMatrixArrayColumn<T: Field> {
     column: <Vec<T> as IntoIterator>::IntoIter,
 }
 
-impl<T: Field> Iterator for MatrixArrayColumn<T> {
+impl<T: Field> Iterator for ParamatrizedMatrixArrayColumn<T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -235,7 +281,7 @@ impl<R: Read, T: Field> GeneralMatrixArrayReader<R, T> {
 }
 
 impl<R: Read, T: Field> Iterator for GeneralMatrixArrayReader<R, T> {
-    type Item = Result<MatrixArrayColumn<T>, Error>;
+    type Item = Result<ParamatrizedMatrixArrayColumn<T>, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.current_col < self.num_cols {
@@ -255,7 +301,7 @@ impl<R: Read, T: Field> Iterator for GeneralMatrixArrayReader<R, T> {
             if vec.len() < self.num_rows {
                 Some(Err(Error::InsufficientContent))
             } else {
-                Some(Ok(MatrixArrayColumn {
+                Some(Ok(ParamatrizedMatrixArrayColumn {
                     column: vec.into_iter()
                 }))
             }
@@ -291,7 +337,7 @@ impl<R: Read, T: Field> LowerTriIncMatrixArrayReader<R, T> {
 }
 
 impl<R: Read, T: Field> Iterator for LowerTriIncMatrixArrayReader<R, T> {
-    type Item = Result<MatrixArrayColumn<T>, Error>;
+    type Item = Result<ParamatrizedMatrixArrayColumn<T>, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.current_col < self.size {
@@ -322,7 +368,7 @@ impl<R: Read, T: Field> Iterator for LowerTriIncMatrixArrayReader<R, T> {
                 vec.push(field);
             }
             if vec.len() == self.size {
-                Some(Ok(MatrixArrayColumn {
+                Some(Ok(ParamatrizedMatrixArrayColumn {
                     column: vec.into_iter()
                 }))
             } else {
@@ -362,7 +408,7 @@ impl<R: Read, T: Field> LowerTriExcMatrixArrayReader<R, T> {
 }
 
 impl<R: Read, T: Field> Iterator for LowerTriExcMatrixArrayReader<R, T> {
-    type Item = Result<MatrixArrayColumn<T>, Error>;
+    type Item = Result<ParamatrizedMatrixArrayColumn<T>, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.current_col < self.size {
@@ -382,7 +428,7 @@ impl<R: Read, T: Field> Iterator for LowerTriExcMatrixArrayReader<R, T> {
                 vec.push(field);
             }
             if vec.len() == self.size {
-                Some(Ok(MatrixArrayColumn {
+                Some(Ok(ParamatrizedMatrixArrayColumn {
                     column: vec.into_iter()
                 }))
             } else {
@@ -394,14 +440,14 @@ impl<R: Read, T: Field> Iterator for LowerTriExcMatrixArrayReader<R, T> {
     }
 }
 
-pub enum GenericFieldMatrixCoordinateReader<R: Read> {
-    Real(MatrixCoordinateReader<R, f64>),
-    Integer(MatrixCoordinateReader<R, i64>),
-    Complex(MatrixCoordinateReader<R, Complex<f64>>),
-    Pattern(MatrixCoordinateReader<R, Pattern>),
+pub enum MatrixCoordinateReader<R: Read> {
+    Real(ParamatrizedMatrixCoordinateReader<R, f64>),
+    Integer(ParamatrizedMatrixCoordinateReader<R, i64>),
+    Complex(ParamatrizedMatrixCoordinateReader<R, Complex<f64>>),
+    Pattern(ParamatrizedMatrixCoordinateReader<R, Pattern>),
 }
 
-impl<R: Read> Iterator for GenericFieldMatrixCoordinateReader<R> {
+impl<R: Read> Iterator for MatrixCoordinateReader<R> {
     type Item = Result<(Position, FieldVal), Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -415,7 +461,7 @@ impl<R: Read> Iterator for GenericFieldMatrixCoordinateReader<R> {
 }
 
 
-pub struct MatrixCoordinateReader<R: Read, T: Field> {
+pub struct ParamatrizedMatrixCoordinateReader<R: Read, T: Field> {
     reader: iter::Peekable<io::Lines<BufReader<R>>>,
     num_rows: usize,
     num_cols: usize,
@@ -424,7 +470,7 @@ pub struct MatrixCoordinateReader<R: Read, T: Field> {
     buffer: Option<(Position, T)>,
 }
 
-impl<R: Read, T: Field> MatrixCoordinateReader<R, T> {
+impl<R: Read, T: Field> ParamatrizedMatrixCoordinateReader<R, T> {
     fn internal_new(reader: iter::Peekable<io::Lines<BufReader<R>>>, num_rows: usize, num_cols: usize, num_left: usize, mirror: Option<fn(&T) -> T>) -> Self {
         Self {
             reader,
@@ -437,7 +483,7 @@ impl<R: Read, T: Field> MatrixCoordinateReader<R, T> {
     }
 }
 
-impl<R: Read, T: Field> Iterator for MatrixCoordinateReader<R, T> {
+impl<R: Read, T: Field> Iterator for ParamatrizedMatrixCoordinateReader<R, T> {
     type Item = Result<(Position, T), Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
